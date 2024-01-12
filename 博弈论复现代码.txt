@@ -1,0 +1,187 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 绘制网络安全模型的初始图表
+x = np.array([1.3727, 1.0620, 0.9483, 0.8794, 0.8242, 0.7717, 0.7134, 0.6421, 0.5449])
+y = np.array([0.2630, 0.3136, 0.3506, 0.3879, 0.4324, 0.4966, 0.6075, 0.8277, 1.4208])
+plt.plot(x, y, ':r.')  # 使用红色点虚线绘制
+plt.xlabel(r'$\mathcal {J}_1(0,x_0;u_{1,k},u_{2,k})$', fontsize=12)  # X轴标签
+plt.ylabel(r'$\mathcal {J}_2(0,x_0;u_{1,k},u_{2,k})$', fontsize=12)  # Y轴标签
+plt.savefig('../results/Fig1.png')  # 保存图表
+plt.show()  # 显示图表
+
+# 初始化网络安全模型的参数
+A1 = np.full(9, 0.6)  # 参数 A1，所有元素都设为0.6
+A2 = np.full(9, 0.3)  # 参数 A2，所有元素都设为0.3
+A3_list = [-0.2727, -0.2766, -0.2826, -0.2928, -0.3089, -0.3347, -0.3761, -0.4470, -0.5990]  # 参数 A3的列表
+A3 = np.array(A3_list)  # 将列表转换为NumPy数组
+k11 = np.array([0.1233, 0.1234, 0.1281, 0.1335, 0.1430, 0.1590, 0.1854, 0.2286, 0.2957])  # 控制效能系数 k11
+k12 = np.array([0.2695, 0.2734, 0.2795, 0.2894, 0.3052, 0.3307, 0.3717, 0.4418, 0.5919])  # 控制效能系数 k12
+k21 = np.array([-0.0290, -0.0273, -0.0302, -0.0315, -0.0337, -0.0374, -0.0436, -0.0538, -0.0696])  # 控制效能系数 k21
+k22 = np.array([-0.0634, -0.0643, -0.0658, -0.0681, -0.0719, -0.0779, -0.0875, -0.1040, -0.1394])  # 控制效能系数 k22
+
+# 进行更多的计算，涉及网络安全模型的动态
+w1 = 9  # 时间步长
+Average = 0  # 平均值
+Serror = 3  # 标准误差
+WNlength = w1  # 白噪声长度
+A = 179  # 参数 A
+M = 2**35  # 参数 M
+x_value = 11  # 初始值
+
+# 生成白噪声
+e = np.empty(WNlength + 1)  # 初始化 e 数组
+e[0] = x_value / M
+for i in range(1, WNlength + 1):
+    e[i] = A * e[i - 1] % 1  # 生成白噪声序列
+u = 0.102 * (np.sqrt(-2 * np.log(e[:-1]))) * np.cos(2 * np.pi * e[1:])  # 生成高斯白噪声
+c = Average + Serror * u  # 生成控制输入
+
+x1 = np.zeros(w1 + 1)  # 初始化 x1 数组
+x1[0] = -1
+y1 = np.zeros(w1 + 1)  # 初始化 y1 数组
+y1[0] = 1
+
+for k in range(w1):
+    x1[k + 1] = (A1[k] + A2[k]) * x1[k] + A3[k] * x1[k]  # 更新 x1
+    y1[k + 1] = x1[k + 1] + (0.6 - 0.8 * k11[k] + 0.9 * k21[k]) * (y1[k] - x1[k]) + (A1[k] * (y1[k] - x1[k]) + A1[k] * x1[k]) * c[k]  # 更新 y1
+
+# 绘制网络安全模型的动态变化图
+plt.figure()
+tout = np.arange(w1 + 1)
+plt.plot(tout, x1, '-b*', label=r'$\mathcal {E}x_k$')  # 绘制 x1
+plt.plot(tout, y1, '-r*', label=r'$x_k$')  # 绘制 y1
+plt.xlabel(r'$k$', fontsize=12)  # X轴标签
+plt.ylabel(r'$\mathcal {E}x_k, x_k$', fontsize=12)  # Y轴标签
+plt.legend()  # 显示图例
+plt.savefig('../results/Fig31.png')  # 保存图表
+plt.show()  # 显示图表
+
+# 初始化更多变量并进行计算
+x2 = np.empty(w1 + 1)
+x3 = np.empty(w1 + 1)
+x4 = np.empty(w1 + 1)
+x5 = np.empty(w1 + 1)
+
+for k in range(w1 + 1):
+    x2[k] = k12[k] * x1[k] if k < len(k12) else 0  # 计算 x2
+    x3[k] = k22[k] * x1[k] if k < len(k22) else 0  # 计算 x3
+    x4[k] = k11[k] * (y1[k] - x1[k]) + k12[k] * x1[k] if k < len(k11) else 0  # 计算 x4
+    x5[k] = k21[k] * (y1[k] - x1[k]) + k22[k] * x1[k] if k < len(k21) else 0  # 计算 x5
+
+# 绘制更多网络安全模型的动态变化图
+plt.figure()
+plt.plot(tout, x2, ':m+', label=r'$\mathcal {E}u_{1,k}$')  # 绘制 x2
+plt.plot(tout, x4, '-r*', label=r'$u_{1,k}$')  # 绘制 x4
+plt.plot(tout, x3, '-.b>', label=r'$\mathcal {E}u_{2,k}$')  # 绘制 x3
+plt.plot(tout, x5, '--p', label=r'$u_{2,k}$')  # 绘制 x5
+plt.xlabel(r'$k$', fontsize=12)  # X轴标签
+plt.ylabel(r'$\mathcal {E}u_{1,k},u_{1,k}, \mathcal {E}u_{2,k},u_{2,k}$', fontsize=12)  # Y轴标签
+plt.legend()  # 显示图例
+plt.savefig('../results/Fig32.png')  # 保存图表
+plt.show()  # 显示图表
+
+
+# 更新A1, A2, A3, k11, k12, k21, k22的值
+# 这些参数用于网络安全模型的动态模拟和绘图
+A1 = np.full(9, 0.6)  # 参数A1，所有元素都设为0.6
+A2 = np.full(9, 0.3)  # 参数A2，所有元素都设为0.3
+A3_list = [-0.2618, -0.2675, -0.2736, -0.2833, -0.2987, -0.3230, -0.3623, -0.4312, -0.5731]
+A3 = np.array(A3_list)  # 将列表转换为NumPy数组
+k11 = np.array([0.0762, 0.0774, 0.0794, 0.0828, 0.0885, 0.0979, 0.1137, 0.1397, 0.1803])  # 控制效能系数k11
+k12 = np.array([0.1685, 0.1720, 0.1760, 0.1822, 0.1921, 0.2078, 0.2331, 0.2771, 0.3687])  # 控制效能系数k12
+k21 = np.array([-0.0639, -0.0649, -0.0665, -0.0693, -0.0742, -0.0821, -0.0954, -0.1171, -0.1511])  # 控制效能系数k21
+k22 = np.array([-0.1411, -0.1443, -0.1475, -0.1528, -0.1611, -0.1742, -0.1953, -0.2328, -0.3090])  # 控制效能系数k22
+
+# 重复之前的计算过程
+# 这里我们使用更新后的参数重新计算x1和y1
+x1 = np.zeros(w1 + 1)
+x1[0] = -1
+y1 = np.zeros(w1 + 1)
+y1[0] = 1
+
+for k in range(w1):
+    x1[k + 1] = (A1[k] + A2[k]) * x1[k] + A3[k] * x1[k]
+    y1[k + 1] = x1[k + 1] + (0.6 - 0.8 * k11[k] + 0.9 * k21[k]) * (y1[k] - x1[k]) + (A1[k] * (y1[k] - x1[k]) + A1[k] * x1[k]) * c[k]
+
+# 重复绘图过程
+# 这里我们使用更新后的参数绘制x1和y1的动态变化图
+plt.figure()
+plt.plot(tout, x1, '-b*', label=r'$\mathcal {E}x_k$')
+plt.plot(tout, y1, '-r*', label=r'$x_k$')
+plt.xlabel(r'$k$', fontsize=12)
+plt.ylabel(r'$\mathcal {E}x_k, x_k$', fontsize=12)
+plt.legend()
+plt.savefig('../results/Fig61.png')
+plt.show()
+
+# 计算x2, x3, x4, x5
+# 这些变量用于后续的动态模拟
+for k in range(w1 + 1):
+    x2[k] = k12[k] * x1[k] if k < len(k12) else 0
+    x3[k] = k22[k] * x1[k] if k < len(k22) else 0
+    x4[k] = k11[k] * (y1[k] - x1[k]) + k12[k] * x1[k] if k < len(k11) else 0
+    x5[k] = k21[k] * (y1[k] - x1[k]) + k22[k] * x1[k] if k < len(k21) else 0
+
+# 绘制图形
+# 这里我们绘制x2, x3, x4, x5的动态变化图
+plt.figure()
+plt.plot(tout, x2, ':m+', label=r'$\mathcal {E}u_{1,k}$')
+plt.plot(tout, x4, '-r*', label=r'$u_{1,k}$')
+plt.plot(tout, x3, '-.b>', label=r'$\mathcal {E}u_{2,k}$')
+plt.plot(tout, x5, '--p', label=r'$u_{2,k}$')
+plt.xlabel(r'$k$', fontsize=12)
+plt.ylabel(r'$\mathcal {E}u_{1,k},u_{1,k}, \mathcal {E}u_{2,k},u_{2,k}$', fontsize=12)
+plt.legend()
+plt.savefig('../results/Fig62.png')
+plt.show()
+
+
+# 更新A1, A2, A3, k11, k12, k21, k22的值
+# 示例：更新所有变量
+A1 = np.full(9, 0.6)  # 再次初始化 A1
+A2 = np.full(9, 0.3)  # 再次初始化 A2
+A3 = np.array([-0.3967, -0.3987, -0.4026, -0.4098, -0.4235, -0.4482, -0.4916, -0.5684, -0.7384])  # 更新 A3
+k11 = np.array([0.0403, 0.0405, 0.0409, 0.0419, 0.0436, 0.0469, 0.0530, 0.0633, 0.0780])  # 更新 k11
+k12 = np.array([0.0741, 0.0745, 0.0752, 0.0766, 0.0792, 0.0837, 0.0915, 0.1062, 0.1380])  # 更新 k12
+k21 = np.array([-0.2033, -0.2046, -0.2070, -0.2113, -0.2204, -0.2373, -0.2680, -0.3206, -0.3944])  # 更新 k21
+k22 = np.array([-0.3749, -0.3768, -0.3805, -0.3873, -0.4001, -0.4236, -0.4649, -0.5371, -0.6978])  # 更新 k22
+
+# 重复之前的计算过程
+x1 = np.zeros(w1 + 1)  # 重新初始化 x1 数组
+x1[0] = -1
+y1 = np.zeros(w1 + 1)  # 重新初始化 y1 数组
+y1[0] = 1
+
+for k in range(w1):
+   x1[k + 1] = (A1[k] + A2[k]) * x1[k] + A3[k] * x1[k]  # 使用更新后的参数计算 x1
+   y1[k + 1] = x1[k + 1] + (0.6 - 0.8 * k11[k] + 0.9 * k21[k]) * (y1[k] - x1[k]) + (A1[k] * (y1[k] - x1[k]) + A1[k] * x1[k]) * c[k]  # 使用更新后的参数计算 y1
+
+# 重复绘图过程
+plt.figure()
+plt.plot(tout, x1, '-b*', label=r'$\mathcal {E}x_k$')  # 使用更新后的参数绘制 x1
+plt.plot(tout, y1, '-r*', label=r'$x_k$')  # 使用更新后的参数绘制 y1
+plt.xlabel(r'$k$', fontsize=12)  # X轴标签
+plt.ylabel(r'$\mathcal {E}x_k, x_k$', fontsize=12)  # Y轴标签
+plt.legend()  # 显示图例
+plt.savefig('../results/Fig91.png')  # 保存图表
+plt.show()  # 显示图表
+
+# 计算x2, x3, x4, x5
+for k in range(w1 + 1):
+   x2[k] = k12[k] * x1[k] if k < len(k12) else 0  # 使用更新后的参数计算 x2
+   x3[k] = k22[k] * x1[k] if k < len(k22) else 0  # 使用更新后的参数计算 x3
+   x4[k] = k11[k] * (y1[k] - x1[k]) + k12[k] * x1[k] if k < len(k11) else 0  # 使用更新后的参数计算 x4
+   x5[k] = k21[k] * (y1[k] - x1[k]) + k22[k] * x1[k] if k < len(k21) else 0  # 使用更新后的参数计算 x5
+
+# 绘制图形
+plt.figure()
+plt.plot(tout, x2, ':m+', label=r'$\mathcal {E}u_{1,k}$')  # 使用更新后的参数绘制 x2
+plt.plot(tout, x4, '-r*', label=r'$u_{1,k}$')  # 使用更新后的参数绘制 x4
+plt.plot(tout, x3, '-.b>', label=r'$\mathcal {E}u_{2,k}$')  # 使用更新后的参数绘制 x3
+plt.plot(tout, x5, '--p', label=r'$u_{2,k}$')  # 使用更新后的参数绘制 x5
+plt.xlabel(r'$k$', fontsize=12)  # X轴标签
+plt.ylabel(r'$\mathcal {E}u_{1,k},u_{1,k}, \mathcal {E}u_{2,k},u_{2,k}$', fontsize=12)  # Y轴标签
+plt.legend()  # 显示图例
+plt.savefig('../results/Fig92.png')  # 保存图表
+plt.show()  # 显示图表
